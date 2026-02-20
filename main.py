@@ -264,6 +264,7 @@ async def main() -> None:
                     await asyncio.sleep(0.5)
                 check_interval = int(await config_manager.get("check_interval", 60))
                 await asyncio.sleep(check_interval)
+                await asyncio.sleep(60)
             except Exception:
                 logger.exception("Ошибка в signal_loop")
                 await asyncio.sleep(5)

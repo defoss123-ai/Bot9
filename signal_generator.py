@@ -8,6 +8,17 @@ class SignalGenerator:
         self.exchange = exchange
         self.logger = logger
         self.config_manager = config_manager
+    def __init__(
+        self,
+        exchange: ccxt.Exchange,
+        logger: logging.Logger,
+        lookback: int = 20,
+        volume_multiplier: float = 1.5,
+    ) -> None:
+        self.exchange = exchange
+        self.logger = logger
+        self.lookback = lookback
+        self.volume_multiplier = volume_multiplier
 
     async def fetch_ohlcv(self, symbol: str, limit: int = 100) -> list:
         try:
