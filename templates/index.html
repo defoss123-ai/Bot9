@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MEXC Flipping Bot</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <h1 class="h3 mb-3">Флиппинг-бот MEXC</h1>
+
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#api-tab">API</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pairs-tab">Пары</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#strategy-tab">Стратегия</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#stats-tab">Статистика</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#logs-tab">Логи</button></li>
+  </ul>
+
+  <div class="tab-content border border-top-0 p-3 bg-white">
+    <div class="tab-pane fade show active" id="api-tab">
+      <form id="api-form" class="row g-2">
+        <div class="col-md-5">
+          <input id="api-key" class="form-control" title="Ваш API ключ от MEXC Futures" placeholder="API Key" required>
+        </div>
+        <div class="col-md-5">
+          <input id="api-secret" class="form-control" title="Ваш API secret от MEXC Futures" placeholder="API Secret" required>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button class="btn btn-primary" type="submit" title="Сохранить ключи в зашифрованном виде">Сохранить</button>
+        </div>
+      </form>
+      <div class="mt-2">
+        <button class="btn btn-outline-secondary" id="test-connection-btn" title="Проверка авторизации на бирже">Проверить подключение</button>
+      </div>
+      <div id="connection-result" class="small mt-2 text-muted"></div>
+    </div>
+
+    <div class="tab-pane fade" id="pairs-tab">
+      <div class="d-flex justify-content-between mb-2">
+        <h2 class="h6 m-0">Торговые пары</h2>
+        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#pairModal" title="Добавить новую пару">Добавить пару</button>
+      </div>
+      <table class="table table-sm table-striped">
+        <thead><tr><th>Символ</th><th>TP%</th><th>SL%</th><th>Автоотмена</th><th>Статус</th></tr></thead>
+        <tbody id="pairsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="tab-pane fade" id="strategy-tab">
+      <div class="row g-2">
+        <div class="col-md-3"><label class="form-label">Lookback</label><input id="lookback" class="form-control" type="number" value="20" title="Количество свечей для анализа"></div>
+        <div class="col-md-3"><label class="form-label">Volume multiplier</label><input id="volume-multiplier" class="form-control" type="number" step="0.1" value="1.5" title="Множитель объёма для подтверждения"></div>
+        <div class="col-md-3"><label class="form-label">Интервал (сек)</label><input id="check-interval" class="form-control" type="number" value="60" title="Период проверки сигналов"></div>
+        <div class="col-md-3"><label class="form-label">Риск на сделку, %</label><input id="risk-per-trade" class="form-control" type="number" step="0.1" min="0.1" max="50" value="5" title="Процент баланса на одну сделку"></div>
+      </div>
+      <button class="btn btn-primary mt-3" id="save-strategy-btn" title="Сохранить параметры стратегии">Сохранить</button>
+      <div id="strategy-msg" class="small mt-2 text-muted"></div>
+    </div>
+
+    <div class="tab-pane fade" id="stats-tab">
+      <div class="mb-2">Статус: <span id="statusText">—</span></div>
+    </div>
+
+    <div class="tab-pane fade" id="logs-tab">
+      <div id="logsBox" class="border rounded p-2" style="height:260px; overflow:auto; font-family:monospace;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="pairModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form id="pair-form">
+      <div class="modal-header"><h5 class="modal-title">Добавить/обновить пару</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input class="form-control mb-2" name="symbol" placeholder="Символ (например BTCUSDT)" title="Торговый символ" required>
+                <input class="form-control mb-2" name="tp_percent" type="number" step="0.1" min="0.1" value="2.0" title="Тейк-профит в процентах" required>
+        <input class="form-control mb-2" name="sl_percent" type="number" step="0.1" min="0.1" value="1.0" title="Стоп-лосс в процентах" required>
+        <input class="form-control mb-2" name="cancel_time" type="number" min="0" value="60" title="Автоотмена лимитного ордера в секундах" required>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="enabled" id="pair-enabled" checked>
+          <label class="form-check-label" for="pair-enabled" title="Включена ли пара для торговли">Включена</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Закрыть</button>
+        <button class="btn btn-primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+async function loadPairs() {
+  const res = await fetch('/api/pairs');
+  const data = await res.json();
+  const body = document.getElementById('pairsBody');
+  body.innerHTML = Object.entries(data).map(([symbol, s]) =>
+    `<tr><td>${symbol}</td><td>${s.tp_percent}</td><td>${s.sl_percent}</td><td>${s.cancel_time}</td><td>${s.enabled ? 'Вкл' : 'Выкл'}</td></tr>`
+  ).join('');
+}
+
+async function loadStrategy() {
+  const res = await fetch('/api/strategy');
+  const data = await res.json();
+  document.getElementById('lookback').value = data.lookback;
+  document.getElementById('volume-multiplier').value = data.volume_multiplier;
+  document.getElementById('check-interval').value = data.check_interval;
+  document.getElementById('risk-per-trade').value = data.risk_per_trade;
+}
+
+async function saveStrategy() {
+  const payload = {
+    lookback: Number(document.getElementById('lookback').value),
+    volume_multiplier: Number(document.getElementById('volume-multiplier').value),
+    check_interval: Number(document.getElementById('check-interval').value),
+    risk_per_trade: Number(document.getElementById('risk-per-trade').value),
+  };
+  const res = await fetch('/api/strategy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  document.getElementById('strategy-msg').textContent = res.ok ? 'Стратегия сохранена' : 'Ошибка сохранения стратегии';
+}
+
+async function loadStatus() {
+  const res = await fetch('/api/status');
+  const data = await res.json();
+  document.getElementById('statusText').textContent = `running=${data.running}, active_pairs=${data.active_pairs}, trader_ready=${data.trader_ready}`;
+}
+
+async function loadLogs() {
+  const res = await fetch('/api/logs');
+  const logs = await res.json();
+  document.getElementById('logsBox').innerHTML = logs.map((l) => `${l.timestamp} | ${l.level} | ${l.message}`).join('<br>');
+}
+
+async function savePair(event) {
+  event.preventDefault();
+  const formData = new FormData(document.getElementById('pair-form'));
+  const data = Object.fromEntries(formData.entries());
+
+  const response = await fetch('/api/pairs', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+
+  if (response.ok) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('pairModal'));
+    if (modal) modal.hide();
+    await loadPairs();
+  } else {
+    alert('Ошибка сохранения');
+  }
+}
+
+document.getElementById('api-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const apiKey = document.getElementById('api-key').value;
+  const apiSecret = document.getElementById('api-secret').value;
+  const response = await fetch('/api/keys', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({api_key: apiKey, api_secret: apiSecret})
+  });
+  const result = await response.json();
+  document.getElementById('connection-result').innerHTML = result.success
+    ? '<span style="color:green">✓ Ключи сохранены</span>'
+    : `<span style="color:red">✗ ${result.message}</span>`;
+});
+
+// При нажатии на кнопку "Проверить подключение"
+document.getElementById('test-connection-btn').addEventListener('click', async () => {
+  const apiKey = document.getElementById('api-key').value;
+  const apiSecret = document.getElementById('api-secret').value;
+  const resultDiv = document.getElementById('connection-result');
+
+  resultDiv.innerHTML = 'Проверка...';
+  try {
+    const response = await fetch('/api/test_connection', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: apiKey, api_secret: apiSecret})
+    });
+    const data = await response.json();
+    if (data.success) {
+      resultDiv.innerHTML = '<span style="color:green">✓ Подключение успешно</span>';
+    } else {
+      resultDiv.innerHTML = `<span style="color:red">✗ ${data.message}</span>`;
+    }
+  } catch (error) {
+    resultDiv.innerHTML = `<span style="color:red">Ошибка запроса: ${error}</span>`;
+  }
+});
+
+document.getElementById('pair-form').addEventListener('submit', savePair);
+document.getElementById('save-strategy-btn').addEventListener('click', saveStrategy);
+
+async function refreshAll() {
+  await Promise.all([loadPairs(), loadStrategy(), loadStatus(), loadLogs()]);
+}
+
+// Инициализация всех тултипов Bootstrap
+document.addEventListener('DOMContentLoaded', function() {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+  tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+  refreshAll();
+  setInterval(async () => {
+    await Promise.all([loadStatus(), loadLogs()]);
+  }, 5000);
+});
+</script>
+</body>
+</html>
