@@ -4,6 +4,10 @@ import ccxt.async_support as ccxt
 
 
 class SignalGenerator:
+    def __init__(self, exchange: ccxt.Exchange, logger: logging.Logger, config_manager) -> None:
+        self.exchange = exchange
+        self.logger = logger
+        self.config_manager = config_manager
     def __init__(
         self,
         exchange: ccxt.Exchange,
@@ -24,11 +28,14 @@ class SignalGenerator:
             return []
 
     async def generate_signal(self, symbol: str) -> str | None:
-        candles = await self.fetch_ohlcv(symbol, limit=self.lookback + 5)
-        if len(candles) < self.lookback + 1:
+        lookback = int(await self.config_manager.get("lookback", 20))
+        volume_multiplier = float(await self.config_manager.get("volume_multiplier", 1.5))
+
+        candles = await self.fetch_ohlcv(symbol, limit=lookback + 5)
+        if len(candles) < lookback + 1:
             return None
 
-        recent = candles[-(self.lookback + 1) :]
+        recent = candles[-(lookback + 1) :]
         current = recent[-1]
         previous = recent[:-1]
 
@@ -46,8 +53,8 @@ class SignalGenerator:
         current_low = current[3]
         current_volume = current[5]
 
-        if current_high > local_high and current_volume > avg_volume * self.volume_multiplier and momentum > 0:
+        if current_high > local_high and current_volume > avg_volume * volume_multiplier and momentum > 0:
             return "LONG"
-        if current_low < local_low and current_volume > avg_volume * self.volume_multiplier and momentum < 0:
+        if current_low < local_low and current_volume > avg_volume * volume_multiplier and momentum < 0:
             return "SHORT"
         return None

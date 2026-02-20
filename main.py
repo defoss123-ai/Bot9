@@ -11,6 +11,7 @@ import ccxt.async_support as ccxt
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
+from config_manager import ConfigManager
 from db_logger import DBLogHandler, DatabaseLogger
 from pair_manager import PairManager
 from signal_generator import SignalGenerator
@@ -184,6 +185,7 @@ class BotContext:
     signal_generator: SignalGenerator | None = None
     trader: Trader | None = None
     db_logger: DatabaseLogger | None = None
+    config_manager: ConfigManager | None = None
     stop_event: asyncio.Event = field(default_factory=asyncio.Event)
 
     async def shutdown(self) -> None:
@@ -217,6 +219,10 @@ async def main() -> None:
     root.setLevel(logging.INFO)
 
     db = await init_db()
+    config_manager = ConfigManager(db)
+    await config_manager.init_table()
+    await config_manager.load_all()
+
     fernet = get_or_create_fernet_key()
     encrypted_settings = EncryptedSettings(db, fernet)
     api_key, api_secret = await encrypted_settings.get_api_keys()
@@ -233,6 +239,7 @@ async def main() -> None:
     context = BotContext(exchange=None, db=db, logger=logger, fernet=fernet, running=True)
     context.pair_manager = pair_manager
     context.db_logger = db_logger
+    context.config_manager = config_manager
 
     async def log_processor() -> None:
         while context.running:
@@ -255,6 +262,8 @@ async def main() -> None:
                                     int(settings.get("cancel_time", 60)),
                                 )
                     await asyncio.sleep(0.5)
+                check_interval = int(await config_manager.get("check_interval", 60))
+                await asyncio.sleep(check_interval)
                 await asyncio.sleep(60)
             except Exception:
                 logger.exception("Ошибка в signal_loop")
@@ -266,8 +275,8 @@ async def main() -> None:
         try:
             exchange = await create_exchange(api_key, api_secret)
             context.exchange = exchange
-            context.signal_generator = SignalGenerator(exchange, logger)
-            context.trader = Trader(exchange, pair_manager, db, logger)
+            context.signal_generator = SignalGenerator(exchange, logger, config_manager)
+            context.trader = Trader(exchange, pair_manager, db, logger, config_manager)
             context.tasks.append(asyncio.create_task(context.trader.check_positions_and_orders()))
             context.tasks.append(asyncio.create_task(signal_loop()))
             logger.info("Подключение к MEXC успешно")
@@ -276,7 +285,7 @@ async def main() -> None:
     else:
         logger.warning("API ключи не найдены. Запущен только веб-интерфейс для настройки.")
 
-    web = WebInterface(pair_manager, context.trader, db_logger, context, fernet)
+    web = WebInterface(pair_manager, context.trader, db_logger, context, fernet, config_manager)
     context.tasks.append(asyncio.create_task(web.run(host="0.0.0.0", port=5000)))
 
     def request_shutdown() -> None:
